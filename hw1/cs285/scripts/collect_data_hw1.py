@@ -7,7 +7,7 @@ import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from glob import glob
 
-EXPERTS = {"Ant-v4", "HalfCheetah-v4"}
+EXPERTS = {"Ant-v4", "Walker2d-v4"}
 
 
 def run_bc(env, params):
@@ -123,9 +123,10 @@ def visualizer_bc(env, hparams_values, seeds):
 
     ax.set_xlabel("Train Batch Size")
     ax.set_ylabel("Average Rewards")
+    ax.set_xticks(hparams_values)
 
     ax.set_title(
-        "Agent with average mean and std of rewards over different train batch sizes, three seeds, and approximately 5 rollouts"
+        "Agent with average mean and std of rewards over different train batch sizes, 5 seeds, and approximately 5 rollouts using BC"
     )
     ax.legend(loc="upper right")
 
@@ -212,7 +213,7 @@ def visualizer_dagger(env, params_values, n_iter, seeds):
     ax.set_ylabel("Average Rewards")
 
     ax.set_title(
-        "Agent with average mean and std of rewards over three seeds, and approximately 5 rollouts using DAgger"
+        "Agent with average mean and std of rewards over 5 seeds, and approximately 5 rollouts using DAgger"
     )
     ax.legend(loc="upper right")
 
