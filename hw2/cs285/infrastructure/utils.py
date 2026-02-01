@@ -28,16 +28,15 @@ def sample_trajectory(
             image_obs.append(
                 cv2.resize(img, dsize=(250, 250), interpolation=cv2.INTER_CUBIC)
             )
-
         # TODO use the most recent ob and the policy to decide what to do
-        ac: np.ndarray = None
+        ac: np.ndarray = policy.get_action(ob)
 
         # TODO: use that action to take a step in the environment
-        next_ob, rew, done, _ = None, None, None, None
+        next_ob, rew, done, _ = env.step(ac)
 
         # TODO rollout can end due to done, or due to max_length
         steps += 1
-        rollout_done: bool = None
+        rollout_done: bool = done or (steps >= max_length)
 
         # record result of taking that action
         obs.append(ob)
@@ -51,7 +50,7 @@ def sample_trajectory(
         # end the rollout if the rollout ended
         if rollout_done:
             break
-
+    
     return {
         "observation": np.array(obs, dtype=np.float32),
         "image_obs": np.array(image_obs, dtype=np.uint8),
