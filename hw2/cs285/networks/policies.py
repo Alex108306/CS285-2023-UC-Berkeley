@@ -80,7 +80,7 @@ class MLPPolicy(nn.Module):
             # TODO: define the forward pass for a policy with a continuous action space.
             mean_actions = self.mean_net(obs)
             std_actions = torch.exp(self.logstd)
-            dist = distributions.Normal(mean_actions, std_actions)
+            dist = distributions.MultivariateNormal(mean_actions, torch.diag(std_actions**2)) # Here we should use MultivariateNormal instead of Normal, because the action space can be multi-dimensional. The covariance matrix is diagonal, with the std squared as the diagonal entries.
         return dist
 
     def update(self, obs: np.ndarray, actions: np.ndarray, *args, **kwargs) -> dict:

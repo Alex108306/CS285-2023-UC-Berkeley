@@ -149,7 +149,9 @@ class PGAgent(nn.Module):
 
         # TODO: normalize the advantages to have a mean of zero and a standard deviation of one within the batch
         if self.normalize_advantages:
-            pass
+            mean = np.sum(advantages)/len(advantages)
+            variance = np.sum((advantages-mean)**2)/len(advantages)
+            advantages = (advantages - mean)/(np.sqrt(variance+1e-8))
 
         return advantages
 
@@ -175,10 +177,13 @@ class PGAgent(nn.Module):
         Helper function which takes a list of rewards {r_0, r_1, ..., r_t', ... r_T} and returns a list where the entry
         in each index t' is sum_{t'=t}^T gamma^(t'-t) * r_{t'}.
         """
+        discounted_returns_to_go_ep = []
         discounted_returns_to_go = []
-        return_value = 0.0
-        for i in reversed(range(len(rewards))):
-            return_value = rewards[i] + self.gamma * return_value
-            discounted_returns_to_go.append(return_value)
-        discounted_returns_to_go = reversed(discounted_returns_to_go)
+        for reward_ep in rewards:
+            return_value = 0.0
+            for i in reversed(range(len(reward_ep))):
+                return_value = reward_ep[i] + self.gamma * return_value
+                discounted_returns_to_go_ep.append(return_value)
+            discounted_returns_to_go.append(discounted_returns_to_go_ep[::-1])
+            discounted_returns_to_go_ep = []
         return discounted_returns_to_go
