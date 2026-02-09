@@ -15,6 +15,8 @@ from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
 from cs285.infrastructure.action_noise_wrapper import ActionNoiseWrapper
 
+import wandb
+
 MAX_NVIDEO = 2
 
 
@@ -66,58 +68,91 @@ def run_training_loop(args):
     total_envsteps = 0
     start_time = time.time()
 
-    for itr in range(args.n_iter):
-        print(f"\n********** Iteration {itr} ************")
-        # TODO: sample `args.batch_size` transitions using utils.sample_trajectories
-        # make sure to use `max_ep_len`
-        trajs, envsteps_this_batch = utils.sample_trajectories(env, agent.actor, args.batch_size, max_ep_len)  # TODO
-        total_envsteps += envsteps_this_batch
+    wandb.login()
 
-        # trajs should be a list of dictionaries of NumPy arrays, where each dictionary corresponds to a trajectory.
-        # this line converts this into a single dictionary of lists of NumPy arrays.
-        trajs_dict = {k: [traj[k] for traj in trajs] for k in trajs[0]}
+    project_name = "cs285_hw2"
 
-        # TODO: train the agent using the sampled trajectories and the agent's update function
-        train_info: dict = agent.update(trajs_dict["observation"], trajs_dict["action"], trajs_dict["reward"], trajs_dict["terminal"])
+    config = {
+        "env_name": args.env_name,
+        "exp_name": args.exp_name,
+        "n_iter": args.n_iter,
+        "use_reward_to_go": args.use_reward_to_go,
+        "use_baseline": args.use_baseline,
+        "baseline_learning_rate": args.baseline_learning_rate,
+        "baseline_gradient_steps": args.baseline_gradient_steps,
+        "gae_lambda": args.gae_lambda,
+        "normalize_advantages": args.normalize_advantages,
+        "batch_size": args.batch_size,
+        "eval_batch_size": args.eval_batch_size,
+        "discount": args.discount,
+        "learning_rate": args.learning_rate,
+        "n_layers": args.n_layers,
+        "layer_size": args.layer_size,
+        "ep_len": max_ep_len,
+        "seed": args.seed,
+        "no_gpu": args.no_gpu,
+        "which_gpu": args.which_gpu,
+        "video_log_freq": args.video_log_freq,
+        "scalar_log_freq": args.scalar_log_freq,
+        "action_noise_std": args.action_noise_std
+    }
 
-        if itr % args.scalar_log_freq == 0:
-            # save eval metrics
-            print("\nCollecting data for eval...")
-            eval_trajs, eval_envsteps_this_batch = utils.sample_trajectories(
-                env, agent.actor, args.eval_batch_size, max_ep_len
-            )
+    with wandb.init(project=project_name, config=config) as run:
 
-            logs = utils.compute_metrics(trajs, eval_trajs)
-            # compute additional metrics
-            logs.update(train_info)
-            logs["Train_EnvstepsSoFar"] = total_envsteps
-            logs["TimeSinceStart"] = time.time() - start_time
-            if itr == 0:
-                logs["Initial_DataCollection_AverageReturn"] = logs[
-                    "Train_AverageReturn"
-                ]
+        for itr in range(args.n_iter):
+            print(f"\n********** Iteration {itr} ************")
+            # TODO: sample `args.batch_size` transitions using utils.sample_trajectories
+            # make sure to use `max_ep_len`
+            trajs, envsteps_this_batch = utils.sample_trajectories(env, agent.actor, args.batch_size, max_ep_len)  # TODO
+            total_envsteps += envsteps_this_batch
 
-            # perform the logging
-            for key, value in logs.items():
-                print("{} : {}".format(key, value))
-                logger.log_scalar(value, key, itr)
-            print("Done logging...\n\n")
+            # trajs should be a list of dictionaries of NumPy arrays, where each dictionary corresponds to a trajectory.
+            # this line converts this into a single dictionary of lists of NumPy arrays.
+            trajs_dict = {k: [traj[k] for traj in trajs] for k in trajs[0]}
 
-            logger.flush()
+            # TODO: train the agent using the sampled trajectories and the agent's update function
+            train_info: dict = agent.update(trajs_dict["observation"], trajs_dict["action"], trajs_dict["reward"], trajs_dict["terminal"])
 
-        if args.video_log_freq != -1 and itr % args.video_log_freq == 0:
-            print("\nCollecting video rollouts...")
-            eval_video_trajs = utils.sample_n_trajectories(
-                env, agent.actor, MAX_NVIDEO, max_ep_len, render=True
-            )
+            if itr % args.scalar_log_freq == 0:
+                # save eval metrics
+                print("\nCollecting data for eval...")
+                eval_trajs, eval_envsteps_this_batch = utils.sample_trajectories(
+                    env, agent.actor, args.eval_batch_size, max_ep_len
+                )
 
-            logger.log_trajs_as_videos(
-                eval_video_trajs,
-                itr,
-                fps=fps,
-                max_videos_to_save=MAX_NVIDEO,
-                video_title="eval_rollouts",
-            )
+                logs = utils.compute_metrics(trajs, eval_trajs)
+                # compute additional metrics
+                logs.update(train_info)
+                logs["Train_EnvstepsSoFar"] = total_envsteps
+                logs["TimeSinceStart"] = time.time() - start_time
+                if itr == 0:
+                    logs["Initial_DataCollection_AverageReturn"] = logs[
+                        "Train_AverageReturn"
+                    ]
+
+                # perform the logging
+                for key, value in logs.items():
+                    print("{} : {}".format(key, value))
+                    logger.log_scalar(value, key, itr)
+                print("Done logging...\n\n")
+
+                logger.flush()
+
+                run.log(logs)
+
+            if args.video_log_freq != -1 and itr % args.video_log_freq == 0:
+                print("\nCollecting video rollouts...")
+                eval_video_trajs = utils.sample_n_trajectories(
+                    env, agent.actor, MAX_NVIDEO, max_ep_len, render=True
+                )
+
+                logger.log_trajs_as_videos(
+                    eval_video_trajs,
+                    itr,
+                    fps=fps,
+                    max_videos_to_save=MAX_NVIDEO,
+                    video_title="eval_rollouts",
+                )
 
 
 def main():
